@@ -1,4 +1,5 @@
 pandas
 python-dotenv
 openai==0.28.1
-os
+scikit-learn
+sentence-transformers
