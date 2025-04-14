@@ -3,3 +3,4 @@ python-dotenv
 openai==0.28.1
 scikit-learn
 sentence-transformers
+mlxtend==0.23.1
