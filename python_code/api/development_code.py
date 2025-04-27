@@ -5,6 +5,7 @@ import os
 def main():
     pass
 
+
 # Verificar se o script está sendo executado diretamente (não importado como módulo)
 # Evita que o código seja executado ao importar o módulo em outro lugar
 if __name__ == "__main__":
@@ -24,8 +25,12 @@ if __name__ == "__main__":
         prompt = input("Usuário: ")
         messages.append({"role": "user", "content": prompt})
 
-        # Executar Guard Agent e obter resposta
+        # Executar Guard Agent
         guard_agent_response = guard_agent.get_response(messages)
         print("Resposta do Guard Agent: ", guard_agent_response)
-        # if guard_agent_response['memory']['guard_decision'] == 'allowed':
-        messages.append(guard_agent_response)
+        if guard_agent_response['memory']['guard_decision'] == 'allowed':
+            # se a decisão for permitida
+            messages.append(guard_agent_response)
+            continue
+
+        # Executar Classification Agent
