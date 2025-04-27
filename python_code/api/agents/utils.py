@@ -3,10 +3,10 @@ from openai import ChatCompletion
 # Função para obter uma resposta do chatbot.
 
 
-def get_chatbot_response(messages, model_name, temperature=0):
+def get_chatbot_response(client, model_name, messages, temperature=0):
     # Type check do messages
-    if not isinstance(messages, list):
-        raise TypeError("messages deve ser uma lista")
+    # if not isinstance(messages, list):
+    #     raise TypeError("messages deve ser uma lista")
 
     # Lista de mensagens enviadas para o LLM
     input_messages = []
@@ -18,7 +18,7 @@ def get_chatbot_response(messages, model_name, temperature=0):
         })
 
     # Chamada à API do OpenAI para obter a resposta do modelo
-    response = ChatCompletion.create(
+    response = client.chat.completions.create(
         model=model_name,  # Modelo de IA
         # Lista de mensagens
         messages=input_messages,
@@ -27,7 +27,7 @@ def get_chatbot_response(messages, model_name, temperature=0):
         top_p=0.8,
         max_tokens=2_000,  # Limite de tokens na resposta
         # Token: unidade de medida do modelo de IA (palavras, sub-palavras, caracteres, ...)
-    ).choices[0].message.content.strip()
+    ).choices[0].message.content
 
     return response  # Retornar resposta ao usuário
 

@@ -7,6 +7,7 @@ from copy import deepcopy
 
 dotenv.load_dotenv()  # Carregar variáveis de ambiente
 
+
 class GuardAgent():
     def __init__(self):
         # Inicializar o cliente OpenAI com a chave de API e a URL base
