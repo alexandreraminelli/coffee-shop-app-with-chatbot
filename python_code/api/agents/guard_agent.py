@@ -9,6 +9,7 @@ dotenv.load_dotenv()  # Carregar variáveis de ambiente
 
 
 class GuardAgent():
+    # Método construtor
     def __init__(self):
         # Inicializar o cliente OpenAI com a chave de API e a URL base
         self.client = OpenAI(
