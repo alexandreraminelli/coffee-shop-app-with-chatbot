@@ -1,5 +1,10 @@
-from agents import (GuardAgent, ClassificationAgent)  # importação dos agentes
+from agents import (  # importação dos agentes
+    GuardAgent,
+    ClassificationAgent,
+    DetailsAgent,
+    AgentProtocol)
 import os
+from typing import Dict  # tipagem
 
 
 def main():
@@ -12,6 +17,10 @@ if __name__ == "__main__":
     # Instanciar agentes
     guard_agent = GuardAgent()
     classification_agent = ClassificationAgent()
+    # Dicionário com os agentes pós-classificação
+    agent_dict: Dict[str, AgentProtocol] = {
+        "details_agent": DetailsAgent(),
+    }
 
     # Lista de mensagens para armazenar as interações
     messages = []
@@ -42,3 +51,11 @@ if __name__ == "__main__":
         # Agente escolhido pelo classificador
         chosen_agent = classification_agent_response["memory"]["classification_decision"]
         print("Agente escolhido: ", chosen_agent)
+
+        # Executar o agente escolhido
+        agent = agent_dict[chosen_agent]  # usar instância do agente escolhido
+        # Resposta do agente escolhido
+        # acessar seu método `get_response`
+        response = agent.get_response(messages)
+        # adiciona a resposta do agente à lista de mensagens
+        messages.append(response)
