@@ -1,4 +1,4 @@
-from openai import ChatCompletion
+# Utilitários para agentes de chatbot
 
 # Função para obter uma resposta do chatbot.
 
@@ -8,28 +8,38 @@ def get_chatbot_response(client, model_name, messages, temperature=0):
     # if not isinstance(messages, list):
     #     raise TypeError("messages deve ser uma lista")
 
-    # Lista de mensagens enviadas para o LLM
-    input_messages = []
-    for message in messages:
-        # Adicionar dicionário à lista
-        input_messages.append({
-            "role": message["role"],  # Quem está falando (usuário ou sistema)
-            "content": message["content"]  # Conteúdo da mensagem
-        })
+    try:
+        # Lista de mensagens enviadas para o LLM
+        input_messages = []
+        for message in messages:
+            # Adicionar dicionário à lista
+            input_messages.append({
+                # Quem está falando (usuário ou sistema)
+                "role": message["role"],
+                "content": message["content"]  # Conteúdo da mensagem
+            })
 
-    # Chamada à API do OpenAI para obter a resposta do modelo
-    response = client.chat.completions.create(
-        model=model_name,  # Modelo de IA
-        # Lista de mensagens
-        messages=input_messages,
-        # Temperatura: quantidade de aleatoriedade na resposta
-        temperature=temperature,  # 0 pois queremos resultados concretos
-        top_p=0.8,
-        max_tokens=2_000,  # Limite de tokens na resposta
-        # Token: unidade de medida do modelo de IA (palavras, sub-palavras, caracteres, ...)
-    ).choices[0].message.content
+        # Chamada à API do OpenAI para obter a resposta do modelo
+        response = client.chat.completions.create(
+            model=model_name,  # Modelo de IA
+            # Lista de mensagens
+            messages=input_messages,
+            # Temperatura: quantidade de aleatoriedade na resposta
+            temperature=temperature,  # 0 pois queremos resultados concretos
+            top_p=0.8,
+            max_tokens=2_000,  # Limite de tokens na resposta
+            # Token: unidade de medida do modelo de IA (palavras, sub-palavras, caracteres, ...)
+        ).choices[0].message.content
 
-    return response  # Retornar resposta ao usuário
+        # Verificar se a resposta está vazia
+        if not response or response.strip() == "":
+            print("Aviso: API retornou uma resposta vazia")
+            return ""
+
+        return response  # Retornar resposta ao usuário
+    except Exception as e:
+        print(f"Erro ao chamar a API: {e}")
+        return ""  # Retornar string vazia em caso de erro
 
 # Função para obter os embeddings
 
@@ -48,6 +58,11 @@ def get_embedding(embedding_client, text_input):
 
 
 def double_check_json_output(client, model_name, json_string):
+    # Verificar se json_string está vazio ou é nulo
+    if not json_string or json_string.strip() == "":
+        # Retornar um JSON padrão para evitar erro
+        return '{"recommendation_type": "popular", "chain of thought": "Não foi possível determinar o tipo de recomendação devido a um erro na resposta.", "parameters": []}'
+
     prompt = f""" 
     Você verificará esta string JSON e corrigirá quaisquer erros que a tornem inválida. Em seguida, retornará a string JSON corrigida. Nada mais.
     Se o JSON estiver correto, basta retorná-lo.
@@ -59,4 +74,10 @@ def double_check_json_output(client, model_name, json_string):
 
     messages = [{'role': 'user', 'content': prompt}]
     response = get_chatbot_response(client, model_name, messages)
+
+    # Verificar se a resposta está vazia
+    if not response or response.strip() == "":
+        # Retornar um JSON padrão para evitar erro
+        return '{"recommendation_type": "popular", "chain of thought": "Não foi possível determinar o tipo de recomendação devido a um erro na resposta.", "parameters": []}'
+
     return response

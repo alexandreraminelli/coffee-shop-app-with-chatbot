@@ -124,8 +124,7 @@ class RecommendationAgent():
         "chain of thought": Escreva seu raciocínio crítico sobre a qual tipo de recomendação esta entrada é relevante.
         "recommendation_type": "apriori" ou "popular" ou "popular by category". Escolha um desses e escreva apenas a palavra.
         "parameters": Esta é uma lista em python. É uma lista de itens para recomendações apriori ou uma lista de categorias para recomendações populares por categoria. Deixe vazio para recomendações populares. Certifique-se de usar as strings exatas da lista de itens e categorias acima.
-        }
-        """
+        }        """
         # Mensagens que serão enviadas para o LLM: system prompt + 3 últimas mensagens do chat
         input_messages = [
             {'role': 'system', 'content': system_prompt}] + message[-3:]
@@ -136,19 +135,25 @@ class RecommendationAgent():
             self.client, self.model_name, chatbot_output)
 
         output = self.postprocess_classification(chatbot_output)
-        return output  # retornar resposta do LLM
+        return output  # retornar resposta do LLM    # Método para pós-processar a resposta do LLM
 
-    # Método para pós-processar a resposta do LLM
     def postprocess_classification(self, output):
-        # converter resposta do LLM (string) para JSON/dict
-        output = json.loads(output)
-        dict_output = {
-            "recommendation_type": output['recommendation_type'],
-            "parameters": output['parameters'],
-        }
-        return dict_output
+        try:
+            # converter resposta do LLM (string) para JSON/dict
+            output = json.loads(output)
+            dict_output = {
+                "recommendation_type": output.get('recommendation_type', 'popular'),
+                "parameters": output.get('parameters', []),
+            }
+            return dict_output
+        except json.JSONDecodeError as e:
+            # Se houver erro ao analisar o JSON, retornar valores padrão
+            print(f"Erro ao analisar JSON: {e}")
+            return {
+                "recommendation_type": "popular",
+                "parameters": []
+            }  # Método para obter recomendações a partir de um pedido que o usuário fez ou está fazendo
 
-    # Método para obter recomendações a partir de um pedido que o usuário fez ou está fazendo
     def get_recommendations_from_order(self, messages, order):
         messages = deepcopy(messages)  # evitar alterações
 
@@ -180,7 +185,7 @@ class RecommendationAgent():
             {'role': 'system', 'content': system_prompt}] + messages[-3:]
         # Obter resposta do LLM
         chatbot_output = get_chatbot_response(
-            self.cliente, self.model_name, input_messages)
+            self.client, self.model_name, input_messages)
         output = self.postprocess(chatbot_output)
         return output
 
