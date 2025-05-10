@@ -43,3 +43,20 @@ def get_embedding(embedding_client, text_input):
     embeddings = embedding_client.encode(text_input, convert_to_numpy=True)
     # Retornar embeddings
     return embeddings
+
+# Verificação de output JSON
+
+
+def double_check_json_output(client, model_name, json_string):
+    prompt = f""" 
+    Você verificará esta string JSON e corrigirá quaisquer erros que a tornem inválida. Em seguida, retornará a string JSON corrigida. Nada mais.
+    Se o JSON estiver correto, basta retorná-lo.
+
+    NÃO retorne uma única letra fora da string json.
+
+    {json_string}
+    """
+
+    messages = [{'role': 'user', 'content': prompt}]
+    response = get_chatbot_response(client, model_name, messages)
+    return response
