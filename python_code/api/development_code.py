@@ -15,33 +15,6 @@ sys.path.append(os.path.join(folder_path, "../.."))
 
 
 def main():
-    pass
-
-
-# Verificar se o script está sendo executado diretamente (não importado como módulo)
-# Evita que o código seja executado ao importar o módulo em outro lugar
-if __name__ == "__main__":
-    # ---------------------------------------------------------------------------------- #
-    # TESTE DO AGENTE DE RECOMENDAÇÃO
-    # recommendation_agent = RecommendationAgent(
-    #     os.path.join(
-    #         folder_path, "recommendation_objects/apriori_recommendation.json"),
-    #     os.path.join(
-    #         folder_path, "recommendation_objects/popularity_recommendation.csv"),
-    # )
-
-    # print("\nProdutos mais populares:",
-    #       recommendation_agent.get_popular_recommendation())
-    # print("\nCafés mais populares:", recommendation_agent.get_popular_recommendation(
-    #     product_categories="Coffee"))
-    # print("\nItens de padaria mais populares:",
-    #       recommendation_agent.get_popular_recommendation(product_categories="Bakery"))
-    # print("\nRecomendações Apriori ao adicionar Latte ao carrinho:",
-    #       recommendation_agent.get_apriori_recommendation(['Latte']))
-
-    # ---------------------------------------------------------------------------------- #
-
-    # TESTE DOS AGENTES
     # Instanciar agentes
     guard_agent = GuardAgent()
     classification_agent = ClassificationAgent()
@@ -93,3 +66,9 @@ if __name__ == "__main__":
         response = agent.get_response(messages)
         # adiciona a resposta do agente à lista de mensagens
         messages.append(response)
+
+
+# Verificar se o script está sendo executado diretamente (não importado como módulo)
+# Evita que o código seja executado ao importar o módulo em outro lugar
+if __name__ == "__main__":
+    main()
