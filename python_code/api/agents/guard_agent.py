@@ -1,7 +1,7 @@
 from openai import OpenAI
 import os
 import dotenv
-from .utils import get_chatbot_response  # Importar funções utilitárias
+from .utils import get_chatbot_response, double_check_json_output  # utilitários
 import json
 from copy import deepcopy
 
@@ -54,6 +54,8 @@ class GuardAgent():
         # Resposta do chatbot
         chatbot_output = get_chatbot_response(
             self.client, self.model_name, input_messages)
+        chatbot_output = double_check_json_output(
+            self.client, self.model_name, chatbot_output)
         # Resposta ao usuário:
         output = self.postprocess(chatbot_output)
 

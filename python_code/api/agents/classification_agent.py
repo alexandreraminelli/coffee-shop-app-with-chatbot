@@ -1,7 +1,7 @@
 from openai import OpenAI
 import os
 import dotenv
-from .utils import get_chatbot_response  # Importar funções utilitárias
+from .utils import get_chatbot_response, double_check_json_output  # utilitários
 import json
 from copy import deepcopy
 
@@ -52,14 +52,16 @@ class ClassificationAgent():
 
         chatbot_output = get_chatbot_response(
             self.client, self.model_name, input_messages)
+        chatbot_output = double_check_json_output(
+            self.client, self.model_name, chatbot_output)
         # Processa a saída do chatbot
         output = self.postprocess(chatbot_output)
-        return output # Retorna a saída processada
+        return output  # Retorna a saída processada
 
     # Método para processar a saída do chatbot
     # O método verifica se a saída é válida e retorna um dicionário com as chaves "chain of thought", "decision" e "message"
     def postprocess(self, output):
-        print("Saída do classificador: ", output) # Debugging
+        print("Saída do classificador: ", output)  # Debugging
 
         output = json.loads(output)  # Converte a string JSON em um dicionário
 
