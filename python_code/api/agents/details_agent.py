@@ -21,7 +21,7 @@ class DetailsAgent():
         # Inicializar o cliente OpenAI com a chave de API e a URL base
         self.client = OpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"),
-            base_url="https://openrouter.ai/api/v1"  # URL base do OpenRouter
+            base_url=os.getenv("CHATBOT_URL")
         )
         # Carregar o modelo a partir das variáveis de ambiente
         self.model_name = os.getenv("MODEL_NAME")
