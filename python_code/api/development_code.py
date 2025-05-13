@@ -3,7 +3,8 @@ from agents import (  # importação dos agentes
     ClassificationAgent,
     DetailsAgent,
     AgentProtocol,
-    RecommendationAgent)
+    RecommendationAgent,
+    OrderTakingAgent)
 import os
 from typing import Dict  # tipagem
 import pathlib
@@ -27,6 +28,7 @@ def main():
             os.path.join(
                 folder_path, "recommendation_objects/popularity_recommendation.csv")
         ),
+        "order_taking_agent": OrderTakingAgent()
     }
 
     # Lista de mensagens para armazenar as interações
@@ -64,6 +66,8 @@ def main():
         # Resposta do agente escolhido
         # acessar seu método `get_response`
         response = agent.get_response(messages)
+        # Exibir metadados
+        print("Agent output:", response)
         # adiciona a resposta do agente à lista de mensagens
         messages.append(response)
 
