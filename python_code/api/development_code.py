@@ -35,12 +35,12 @@ def main():
     messages = []
     while True:
         # Limpar os inputs anteriores | ter um novo terminal limpo
-        # os.system('cls' if os.name == 'nt' else 'clear')
+        os.system('cls' if os.name == 'nt' else 'clear')
 
         # Exibir mensagens anteriores
-        print("\n\n Print mensagens ............")
-        for message in messages:
-            print(f"{message['role']}: {message['content']}")
+        # print("\n\n Print mensagens ............")
+        # for message in messages:
+        #     print(f"{message['role']}: {message['content']}")
 
         # Obter mensagem do usuário e adiciona-a à lista de mensagens
         prompt = input("Usuário: ")
@@ -48,7 +48,7 @@ def main():
 
         # Executar Guard Agent
         guard_agent_response = guard_agent.get_response(messages)
-        print("Resposta do Guard Agent: ", guard_agent_response)
+        # print("Resposta do Guard Agent: ", guard_agent_response)
         if guard_agent_response['memory']['guard_decision'] == 'not allowed':
             # se a decisão não for permitida
             messages.append(guard_agent_response)
@@ -59,7 +59,7 @@ def main():
             messages)
         # Agente escolhido pelo classificador
         chosen_agent = classification_agent_response["memory"]["classification_decision"]
-        print("Agente escolhido: ", chosen_agent)
+        # print("Agente escolhido: ", chosen_agent)
 
         # Executar o agente escolhido
         agent = agent_dict[chosen_agent]  # usar instância do agente escolhido
@@ -67,7 +67,7 @@ def main():
         # acessar seu método `get_response`
         response = agent.get_response(messages)
         # Exibir metadados
-        print("Agent output:", response)
+        # print("Agent output:", response)
         # adiciona a resposta do agente à lista de mensagens
         messages.append(response)
 
