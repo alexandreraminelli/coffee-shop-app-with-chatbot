@@ -10,7 +10,7 @@ load_dotenv()  # variáveis de ambiente
 
 class OrderTakingAgent():
     # Método construtor
-    def __init__(self):
+    def __init__(self, recommendation_agent):
         # Inicializar o cliente OpenAI com a chave de API e a URL base
         self.client = OpenAI(
             api_key=os.getenv("OPENROUTER_API_KEY"),
@@ -18,6 +18,9 @@ class OrderTakingAgent():
         )
         # Carregar o modelo a partir das variáveis de ambiente
         self.model_name = os.getenv("MODEL_NAME")
+
+        # Agende de Recomendação
+        self.recommendation_agent = recommendation_agent
 
     # Método para obter a resposta do agente
     def get_response(self, messages):
@@ -82,6 +85,10 @@ class OrderTakingAgent():
 
         # Histórico do status do pedido
         last_order_taking_status = ""
+
+        # Se já houve recomendações antes, não perguntar novamente
+        asked_recommendation_before = False
+        # Verificar se há mensagens anteriores
         for message_index in range(len(messages) - 1, 0, -1):
             message = messages[message_index]
             # Obter o nome do agente
@@ -91,12 +98,12 @@ class OrderTakingAgent():
             # Verificar se o nome do agente é 'order_taking_agent'
             if message['role'] == 'assistant' and agent_name == 'order_taking_agent':
                 # Extrair o número da etapa
-                stop_number = message['memory']['step number']
-                # Extrair o pedido
+                step_number = message['memory']['step number']
                 # último status do pedido
                 order = message['memory']['order']
+                asked_recommendation_before = message["memory"]["asked_recommendation_before"]
                 last_order_taking_status = f"""
-                step number: {stop_number}
+                step number: {step_number}
                 order: {order}
                 """
 
@@ -123,7 +130,8 @@ class OrderTakingAgent():
                 self.client, self.model_name, chatbot_response)
 
             # Pós-processamento da resposta
-            output = self.postprocess(chatbot_response)
+            output = self.postprocess(
+                chatbot_response, asked_recommendation_before)
         except Exception as e:
             print(f"Erro ao processar resposta do chatbot: {e}")
             return self.create_default_output("Desculpe, ocorreu um erro ao processar seu pedido.")
@@ -144,7 +152,7 @@ class OrderTakingAgent():
         return dict_output
 
     # Verificar tipos de dados e converter para JSON
-    def postprocess(self, output):
+    def postprocess(self, output, messages, asked_recommendation_before):
         try:
             # Tenta fazer o parsing do JSON
             output = json.loads(output)
@@ -165,6 +173,14 @@ class OrderTakingAgent():
                     output['order'] = []
 
             response = output['response']
+            # Se não houver recomendações anteriores
+            if not asked_recommendation_before and len(output['order']) > 0:
+                # Obter recomendações do agente de recomendação
+                recommendation_output = self.recommendation_agent.get_recommendation_from_order(
+                    messages, output['order'])
+                response = recommendation_output['content']
+                asked_recommendation_before = True
+
         except json.JSONDecodeError as e:
             print(f"Erro ao decodificar o JSON: {e}")
             # Imprime os primeiros 100 caracteres da saída para diagnóstico
@@ -179,6 +195,7 @@ class OrderTakingAgent():
             'memory': {
                 'agent': 'order_taking_agent',
                 'step number': output['step number'],
+                'asked_recommendation_before': asked_recommendation_before,
                 'order': output['order'],
             }
         }
