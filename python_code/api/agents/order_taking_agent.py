@@ -194,7 +194,7 @@ class OrderTakingAgent():
             'content': response,
             'memory': {
                 'agent': 'order_taking_agent',
-                'step number': output['step number'],
+                'step number': output.get('step number', 1),
                 'asked_recommendation_before': asked_recommendation_before,
                 'order': output['order'],
             }
