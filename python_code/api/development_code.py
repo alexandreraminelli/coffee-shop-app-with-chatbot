@@ -19,16 +19,17 @@ def main():
     # Instanciar agentes
     guard_agent = GuardAgent()
     classification_agent = ClassificationAgent()
+    recommendation_agent = RecommendationAgent(
+        os.path.join(
+            folder_path, "recommendation_objects/apriori_recommendation.json"),
+        os.path.join(
+            folder_path, "recommendation_objects/popularity_recommendation.csv")
+    ),
     # Dicionário com os agentes pós-classificação
     agent_dict: Dict[str, AgentProtocol] = {
         "details_agent": DetailsAgent(),
-        "recommendation_agent": RecommendationAgent(
-            os.path.join(
-                folder_path, "recommendation_objects/apriori_recommendation.json"),
-            os.path.join(
-                folder_path, "recommendation_objects/popularity_recommendation.csv")
-        ),
-        "order_taking_agent": OrderTakingAgent()
+        "recommendation_agent": recommendation_agent,
+        "order_taking_agent": OrderTakingAgent(recommendation_agent)
     }
 
     # Lista de mensagens para armazenar as interações
