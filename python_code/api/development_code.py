@@ -24,7 +24,7 @@ def main():
             folder_path, "recommendation_objects/apriori_recommendation.json"),
         os.path.join(
             folder_path, "recommendation_objects/popularity_recommendation.csv")
-    ),
+    )
     # Dicionário com os agentes pós-classificação
     agent_dict: Dict[str, AgentProtocol] = {
         "details_agent": DetailsAgent(),
