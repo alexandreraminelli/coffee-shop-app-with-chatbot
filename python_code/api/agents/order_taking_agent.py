@@ -84,10 +84,11 @@ class OrderTakingAgent():
         """
 
         # Histórico do status do pedido
-        last_order_taking_status = ""
-
         # Se já houve recomendações antes, não perguntar novamente
+        last_order_taking_status = ""
         asked_recommendation_before = False
+        order = []
+        step_number = "1"
         # Verificar se há mensagens anteriores
         for message_index in range(len(messages) - 1, 0, -1):
             message = messages[message_index]
@@ -101,7 +102,9 @@ class OrderTakingAgent():
                 step_number = message['memory']['step number']
                 # último status do pedido
                 order = message['memory']['order']
-                asked_recommendation_before = message["memory"]["asked_recommendation_before"]
+                # Verificar se a chave 'asked_recommendation_before' existe
+                if 'asked_recommendation_before' in message['memory']:
+                    asked_recommendation_before = message['memory']['asked_recommendation_before']
                 last_order_taking_status = f"""
                 step number: {step_number}
                 order: {order}
@@ -116,8 +119,7 @@ class OrderTakingAgent():
             {'role': 'system', 'content': system_prompt}
         ] + messages
 
-        try:
-            # Obter resposta do chatbot
+        try:        # Obter resposta do chatbot
             chatbot_response = get_chatbot_response(
                 self.client, self.model_name, input_messages)
 
@@ -136,9 +138,8 @@ class OrderTakingAgent():
             print(f"Erro ao processar resposta do chatbot: {e}")
             return self.create_default_output("Desculpe, ocorreu um erro ao processar seu pedido.")
 
-        return output
+        return output    # Método para criar uma saída padrão em caso de erro
 
-    # Método para criar uma saída padrão em caso de erro
     def create_default_output(self, message):
         dict_output = {
             'role': 'assistant',
@@ -146,13 +147,13 @@ class OrderTakingAgent():
             'memory': {
                 'agent': 'order_taking_agent',
                 'step number': '1',
-                'order': []
+                'order': [],
+                'asked_recommendation_before': False
             }
         }
-        return dict_output
+        return dict_output    # Verificar tipos de dados e converter para JSON
 
-    # Verificar tipos de dados e converter para JSON
-    def postprocess(self, output, messages, asked_recommendation_before):
+    def postprocess(self, output, asked_recommendation_before):
         try:
             # Tenta fazer o parsing do JSON
             output = json.loads(output)
@@ -173,13 +174,12 @@ class OrderTakingAgent():
                     output['order'] = []
 
             response = output['response']
-            # Se não houver recomendações anteriores
-            if not asked_recommendation_before and len(output['order']) > 0:
-                # Obter recomendações do agente de recomendação
-                recommendation_output = self.recommendation_agent.get_recommendation_from_order(
-                    messages, output['order'])
-                response = recommendation_output['content']
-                asked_recommendation_before = True
+            # Se não houver recomendações anteriores e há itens no pedido
+            # Comentado para evitar erros - a função get_recommendation_from_order precisa ser implementada
+            # if not asked_recommendation_before and len(output['order']) > 0:
+            #    recommendation_output = self.recommendation_agent.get_recommendation_from_order(output['order'])
+            #    response = recommendation_output['content']
+            #    asked_recommendation_before = True
 
         except json.JSONDecodeError as e:
             print(f"Erro ao decodificar o JSON: {e}")
