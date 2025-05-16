@@ -76,12 +76,17 @@ def double_check_json_output(client, model_name, json_string):
     ```
     """
 
-    # COMENTADO PARA EVITAR GASTO DE LIMITE DA API (somente para desenvolvimento/testes)
+    # Para evitar gastar limite da API durante testes, você pode usar este trecho:
+    # response = json_string  # Usar diretamente o JSON original
+
+    # Versão que realmente verifica e corrige o JSON:
     messages = [{'role': 'user', 'content': prompt}]
-    # response = get_chatbot_response(client, model_name, messages)
-    response = messages[0]['content']
-    # Use esta linha para não gastar limite da API - somente para desenvolvimento/testes
-    # response = json_string
+    response = get_chatbot_response(client, model_name, messages)
+
+    # Se a resposta estiver vazia, manter o JSON original
+    if not response or response.strip() == "":
+        response = json_string
+
     # Remover triple backticks (indicadores de código)
     response = response.replace("`", "")
 
