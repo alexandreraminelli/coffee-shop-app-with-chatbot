@@ -1,4 +1,9 @@
 pandas==2.0.3
 python-dotenv==1.0.1
-openai==0.28.1
+openai>=1.0.0  # Versão atualizada para compatibilidade com OpenRouter
 pinecone==5.3.1
+fastapi==0.95.2  # Versão anterior que não requer Rust
+uvicorn==0.22.0
+pydantic==1.10.8  # Versão que não requer compilação com Rust
+sentence-transformers==2.6.1  # Para processamento local de embeddings
+# runpod==1.5.0  # Comentado já que não estamos usando RunPod

@@ -1,0 +1,839 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "id": "f3b7ae1a",
+      "metadata": {},
+      "source": [
+        "# Construir banco de dados vetorial\n",
+        "Obt\u00eam dados do JSON de produtos e efetua o push pro database"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "c389e8f5",
+      "metadata": {},
+      "source": [
+        "## Preparar ambiente"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "id": "3405bdde",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Instalar depend\u00eancias\n",
+        "#!pip install pinecone"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "id": "027c7d21",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "c:\\Users\\aleju\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\tqdm\\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+            "  from .autonotebook import tqdm as notebook_tqdm\n"
+          ]
+        }
+      ],
+      "source": [
+        "from pinecone import Pinecone, ServerlessSpec\n",
+        "import pinecone\n",
+        "import openai\n",
+        "import pandas as pd\n",
+        "import os\n",
+        "import dotenv\n",
+        "from sentence_transformers import SentenceTransformer # para embeddings\n",
+        "from time import sleep\n",
+        "import numpy as np"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "fc69e049",
+      "metadata": {},
+      "source": [
+        "### Vari\u00e1veis de ambiente"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "id": "8aff6da5",
+      "metadata": {},
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "True"
+            ]
+          },
+          "execution_count": 3,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "dotenv.load_dotenv()"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "id": "ef020611",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "token = os.getenv(\"OPENROUTER_API_KEY\") # token do OpenRouter\n",
+        "model_name = os.getenv(\"MODEL_NAME\") # nome do modelo\n",
+        "\n",
+        "pinecone_api_key = os.getenv(\"PINECONE_API_KEY\") # token do Pinecone\n",
+        "pinecone_index_name = os.getenv(\"PINECONE_INDEX_NAME\")  # nome do \u00edndice do Pinecone\n",
+        "\n",
+        "# Modelo de embedding\n",
+        "embedding_model = os.getenv(\"EMBEDDING_MODEL_NAME\")\n",
+        "# Carregar modelo localmente\n",
+        "embedding_client = SentenceTransformer(embedding_model)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "59e2dde6",
+      "metadata": {},
+      "source": [
+        "### Iniciar Pinecone"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "id": "cc7aaea9",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "pc = Pinecone(api_key=pinecone_api_key)\n",
+        "\n",
+        "# client = OpenAI(api_key=token, base_url=open_ai_base_url)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "4ac0aedd",
+      "metadata": {},
+      "source": [
+        "# Teste de embeddings"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "518274fe",
+      "metadata": {},
+      "source": [
+        "Gerar **embeddings vetoriais** (transformar texto em vetores de n\u00fameros):"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "id": "d7312e83",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "[ 1.51960850e-02 -2.25706734e-02  8.54711980e-03 -7.41705820e-02\n",
+            "  3.83639405e-03  2.71344697e-03 -3.12679186e-02  4.46339697e-02\n",
+            "  4.40551378e-02 -7.87114259e-03 -2.52007879e-02 -3.33665088e-02\n",
+            "  1.44279227e-02  4.65381928e-02  8.55509657e-03 -1.61457192e-02\n",
+            "  7.40579702e-03 -1.90124381e-02 -1.14726298e-01 -1.81576442e-02\n",
+            "  1.26359358e-01  2.97029372e-02  2.52810232e-02 -3.42178792e-02\n",
+            " -4.09996919e-02  6.61730114e-03  1.02706430e-02  2.23622601e-02\n",
+            "  4.43633646e-03 -1.27309680e-01 -1.61492061e-02 -2.03801412e-02\n",
+            "  4.72120903e-02  1.15798796e-02  6.81871623e-02  7.29864091e-03\n",
+            " -1.78529993e-02  4.07821722e-02 -1.02694668e-02  2.37570591e-02\n",
+            "  1.06028914e-02 -2.85843518e-02  8.15969706e-03 -1.51805691e-02\n",
+            "  3.08962502e-02 -6.59799501e-02 -2.21965052e-02  5.40237539e-02\n",
+            "  2.54224031e-03  2.24527121e-02 -9.16537493e-02 -4.51403186e-02\n",
+            " -4.19208128e-03 -5.62152732e-03 -5.38092293e-03  9.83934850e-02\n",
+            "  6.05247915e-02  7.42288399e-03  1.39386216e-02  2.68772594e-03\n",
+            "  4.75693829e-02  2.86365803e-02 -1.55344144e-01  6.89369962e-02\n",
+            "  3.02481856e-02 -1.79397352e-02  2.09771320e-02  2.14087516e-02\n",
+            "  1.40810907e-02  1.87777705e-03  2.67214212e-03  3.87235265e-03\n",
+            "  4.11638133e-02  6.58951178e-02 -6.15191367e-03 -1.64653398e-02\n",
+            "  8.19474738e-03 -4.89555486e-02 -2.11134851e-02 -3.08492389e-02\n",
+            " -4.04769965e-02  5.92610091e-02  1.81652140e-02 -4.42942008e-02\n",
+            "  7.03442493e-04 -2.79078465e-02 -4.06387374e-02 -1.12537351e-02\n",
+            " -2.49808822e-02  9.65140387e-03 -1.74919683e-02 -2.72963960e-02\n",
+            " -1.52903507e-02 -5.39711770e-03 -4.14383039e-02  7.15533644e-03\n",
+            "  7.10713677e-03  9.74912941e-03  6.18064485e-04  3.44040334e-01\n",
+            " -9.53938067e-02 -2.02523265e-03  2.80928593e-02 -9.13631916e-02\n",
+            "  5.95841371e-02  2.49091983e-02 -1.63856633e-02 -2.91186143e-02\n",
+            " -8.36276263e-03  1.56925879e-02  1.28415823e-02 -6.42815158e-02\n",
+            "  1.45010417e-02 -1.37407938e-02  1.05200429e-03 -1.96810961e-02\n",
+            "  5.00337556e-02 -2.80845747e-03  9.32045132e-02 -2.94924695e-02\n",
+            " -8.04367103e-03  3.07250842e-02 -4.39799652e-02 -4.20446694e-03\n",
+            "  5.28662428e-02 -6.44988418e-02  5.81997745e-02  7.76135325e-02\n",
+            "  1.16162430e-02  6.97841123e-02 -5.40951360e-03  5.98344058e-02\n",
+            " -2.63525359e-02 -8.66030715e-03  2.75548082e-02 -1.43343527e-02\n",
+            " -1.82215329e-02 -1.39421253e-02  3.55449878e-02 -5.67667298e-02\n",
+            "  8.17366038e-03 -7.67237246e-02 -2.25768201e-02 -1.12845697e-01\n",
+            "  3.38977232e-04  3.03814933e-02 -7.33374879e-02  2.45456584e-02\n",
+            " -1.96199957e-02 -2.40860060e-02 -3.89381945e-02  7.86931887e-02\n",
+            "  4.94580856e-03 -1.63291916e-02  7.77985202e-03  5.50906584e-02\n",
+            " -1.27738193e-02  6.84186518e-02  7.77580217e-03  8.76326486e-03\n",
+            " -1.83578371e-03 -1.24380672e-02 -1.32715907e-02  6.66540116e-03\n",
+            " -1.77990515e-02 -1.28146842e-01  9.99290776e-03  1.94348302e-02\n",
+            " -7.24330405e-03  8.53031874e-04  3.28184525e-03  1.65553652e-02\n",
+            " -3.95972617e-02  2.89041754e-02  1.09648407e-01  7.51247769e-03\n",
+            " -4.08224296e-03  4.45712321e-02 -4.72517386e-02  2.51012016e-02\n",
+            "  6.00976385e-02 -5.09146936e-02 -4.16883305e-02  1.90890599e-02\n",
+            "  2.82753929e-02 -2.53342669e-02 -2.08025333e-02 -3.04817054e-02\n",
+            "  6.23419657e-02  6.70787692e-02 -2.30846312e-02  1.06494036e-02\n",
+            " -3.19175795e-02 -3.42448354e-02 -8.42171460e-02  3.37140961e-03\n",
+            "  3.39697339e-02 -8.10805112e-02  1.34649770e-02 -2.15244796e-02\n",
+            "  1.46212921e-01  5.30410931e-02  4.02478501e-03  2.87657473e-02\n",
+            "  5.53605496e-04  4.20943554e-03  4.06441763e-02  6.17251312e-03\n",
+            "  4.48748916e-02  1.33969048e-02 -2.42759753e-02 -1.51741309e-02\n",
+            "  7.31194615e-02 -6.56034937e-03  2.19388288e-02 -4.29536663e-02\n",
+            " -9.96074732e-03  7.46108592e-02  2.38777120e-02  4.71256338e-02\n",
+            " -3.97658832e-02  1.07745891e-02 -2.21505556e-02 -2.62377292e-01\n",
+            "  1.80346221e-02  8.21609329e-03 -3.41664185e-03 -3.47577035e-02\n",
+            "  2.29678582e-02  3.80674899e-02 -5.16096093e-02  1.01826742e-01\n",
+            " -9.04852245e-03  8.70674178e-02 -5.96380830e-02 -8.33010860e-03\n",
+            " -3.65121812e-02  1.75708346e-02  2.31954660e-02 -1.41765857e-02\n",
+            "  1.60113890e-02 -1.00978026e-02 -2.27100011e-02  2.86225379e-02\n",
+            "  2.29657851e-02  4.34048139e-02 -4.76228110e-02  4.44301255e-02\n",
+            " -5.96770197e-02  1.46560445e-01  8.37219208e-02 -2.02429332e-02\n",
+            "  2.41934266e-02  3.63502093e-02 -2.79559139e-02 -9.28494334e-03\n",
+            " -1.19862005e-01 -2.55388748e-02  7.36322999e-02 -3.46493684e-02\n",
+            " -6.72772750e-02 -9.65831205e-02 -2.22835243e-02 -1.24298763e-02\n",
+            "  1.37725985e-02 -4.09378409e-02 -4.33100434e-03 -2.41425838e-02\n",
+            " -7.48146176e-02 -5.26169576e-02  9.80025437e-03 -5.20673953e-02\n",
+            " -1.24550909e-02 -1.16914632e-02  2.23501250e-02  5.71446009e-02\n",
+            "  6.00013658e-02  1.90165564e-02 -4.59493212e-02  1.66729372e-03\n",
+            " -6.48912566e-04 -1.14968112e-02  3.23784761e-02 -1.46627203e-02\n",
+            " -2.22208723e-02  1.58594158e-02 -3.66354994e-02  1.15335695e-02\n",
+            "  3.50696780e-02 -6.10636026e-02 -2.48836000e-02  4.98194508e-02\n",
+            " -1.74327604e-02 -1.81231648e-02 -3.57170925e-02  2.12307945e-02\n",
+            " -1.64801404e-02  3.63069065e-02  1.41978348e-02 -4.50114347e-03\n",
+            " -2.32993867e-02 -3.98217626e-02 -2.81739738e-02 -5.50379790e-03\n",
+            "  1.14111397e-02  5.83623536e-02  1.42372577e-02  3.27100083e-02\n",
+            "  5.40924929e-02  6.46907985e-02  7.72249978e-03  3.54517810e-02\n",
+            " -1.60534810e-02 -1.29508115e-02  4.12238166e-02 -5.37692290e-03\n",
+            " -6.98096305e-02  1.13140568e-02  1.61013734e-02 -2.95010149e-01\n",
+            "  2.77767386e-02 -2.96496274e-03  2.13931557e-02  4.06598626e-03\n",
+            "  2.11635940e-02  4.11217026e-02 -4.15434159e-04 -5.73229976e-02\n",
+            "  2.23105531e-02 -7.74224326e-02  2.03808080e-02  1.62585471e-02\n",
+            " -6.68938756e-02  8.15796724e-04  2.02084929e-02 -2.45497492e-03\n",
+            " -1.10085690e-02  1.70560069e-02 -1.94960497e-02  2.04796321e-03\n",
+            "  2.21575703e-02  2.29879245e-01 -2.30195411e-02  5.67015894e-02\n",
+            "  3.90696637e-02 -9.25624557e-03  4.57521435e-03  5.47891892e-02\n",
+            "  1.92591753e-02 -9.81374457e-02 -1.52100503e-04  3.15125771e-02\n",
+            " -1.56742763e-02  3.54057588e-02  1.09352823e-02 -6.79895207e-02\n",
+            " -2.89324429e-02  2.40288246e-02 -5.31032532e-02 -2.50053983e-02\n",
+            "  2.23543253e-02 -4.60191146e-02  7.04076663e-02  3.45590003e-02\n",
+            " -7.73315206e-02 -1.35287885e-02 -4.89450358e-02 -3.99244716e-03\n",
+            "  3.73489000e-02 -2.81567127e-02 -7.96701014e-02  5.71105257e-03\n",
+            "  3.20590287e-02 -3.04832403e-02  1.50313657e-02  1.47595704e-02\n",
+            " -9.08162631e-03  1.61402989e-02 -6.34354204e-02  2.13074759e-02\n",
+            " -6.12165732e-03  4.93229143e-02  2.27539558e-02  2.60680877e-02]\n",
+            "\n",
+            "Tamanho do vetor embedding:  384\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Se usar RunPod: \n",
+        "# output = client.embeddings.create(input=[\"Hello World!\"], model=model_name)\n",
+        "# embedding = output.data[0].embedding\n",
+        "\n",
+        "# Chama o modelo de embedding para transformar o texto em um valor num\u00e9rico\n",
+        "output = embedding_client.encode(\n",
+        "    sentences=[\"Hello world\"], # Lista de senten\u00e7as que ser\u00e3o codificadas\n",
+        "    convert_to_numpy=True # Converte a sa\u00edda para um array do NumPy\n",
+        ")\n",
+        "# Como o sentence possui apenas 1 string, o output ser\u00e1 um array 1D (1, 384), ent\u00e3o acessamos o primeiro (e \u00fanico) elemento do array\n",
+        "embedding = output[0]\n",
+        "\n",
+        "print(embedding)\n",
+        "print(\"\\nTamanho do vetor embedding: \", len(embedding))"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "bc7709a1",
+      "metadata": {},
+      "source": [
+        "# Wrangle Dataset\n",
+        ">\"Limpeza, organiza\u00e7\u00e3o e limpeza de dados\"\n",
+        "\n",
+        "Prepara os dados brutos para serem usados em an\u00e1lise, machine learning ou visualiza\u00e7\u00e3o."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "id": "1d1766fe",
+      "metadata": {},
+      "outputs": [
+        {
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>name</th>\n",
+              "      <th>category</th>\n",
+              "      <th>description</th>\n",
+              "      <th>ingredients</th>\n",
+              "      <th>price</th>\n",
+              "      <th>rating</th>\n",
+              "      <th>image_path</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>Cappuccino</td>\n",
+              "      <td>Coffee</td>\n",
+              "      <td>A rich and creamy cappuccino made with freshly...</td>\n",
+              "      <td>[Espresso, Steamed Milk, Milk Foam]</td>\n",
+              "      <td>4.50</td>\n",
+              "      <td>4.7</td>\n",
+              "      <td>cappuccino.jpg</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>Jumbo Savory Scone</td>\n",
+              "      <td>Bakery</td>\n",
+              "      <td>Deliciously flaky and buttery, this jumbo savo...</td>\n",
+              "      <td>[Flour, Butter, Cheese, Herbs, Baking Powder, ...</td>\n",
+              "      <td>3.25</td>\n",
+              "      <td>4.3</td>\n",
+              "      <td>SavoryScone.webp</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "                 name category  \\\n",
+              "0          Cappuccino   Coffee   \n",
+              "1  Jumbo Savory Scone   Bakery   \n",
+              "\n",
+              "                                         description  \\\n",
+              "0  A rich and creamy cappuccino made with freshly...   \n",
+              "1  Deliciously flaky and buttery, this jumbo savo...   \n",
+              "\n",
+              "                                         ingredients  price  rating  \\\n",
+              "0                [Espresso, Steamed Milk, Milk Foam]   4.50     4.7   \n",
+              "1  [Flour, Butter, Cheese, Herbs, Baking Powder, ...   3.25     4.3   \n",
+              "\n",
+              "         image_path  \n",
+              "0    cappuccino.jpg  \n",
+              "1  SavoryScone.webp  "
+            ]
+          },
+          "execution_count": 7,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "# Dataframe com os dados dos produtos\n",
+        "# Atributos: nome, categoria, descri\u00e7\u00e3o, ingredientes, pre\u00e7o, avalia\u00e7\u00e3o, imagem (arquivo no Firebase)\n",
+        "df = pd.read_json(\"../products/products.json\", lines=True)\n",
+        "\n",
+        "df.head(2)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "5c1acbbf",
+      "metadata": {},
+      "source": [
+        "Gerar texto para o chatbot descrever o produto ao cliente:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "id": "ff2dbca1",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Cappuccino : A rich and creamy cappuccino made with freshly brewed espresso, steamed milk, and a frothy milk cap. This delightful drink offers a perfect balance of bold coffee flavor and smooth milk, making it an ideal companion for relaxing mornings or lively conversations.-- Ingredients: ['Espresso', 'Steamed Milk', 'Milk Foam']-- Price: 4.5-- Rating: 4.7\n"
+          ]
+        },
+        {
+          "data": {
+            "text/plain": [
+              "0    Cappuccino : A rich and creamy cappuccino made...\n",
+              "1    Jumbo Savory Scone : Deliciously flaky and but...\n",
+              "2    Latte : Smooth and creamy, our latte combines ...\n",
+              "Name: text, dtype: object"
+            ]
+          },
+          "execution_count": 8,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "# Adicionar coluna com as informa\u00e7\u00f5es em texto do produto\n",
+        "df['text'] = df['name'] + \" : \" + df['description'] + \\\n",
+        "\"-- Ingredients: \" + df['ingredients'].astype(str) + \\\n",
+        "\"-- Price: \" + df['price'].astype(str) + \\\n",
+        "\"-- Rating: \" + df['rating'].astype(str)\n",
+        "\n",
+        "print(df['text'][0]) # Texto do primeiro produto\n",
+        "df['text'].head(3)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "id": "cc091bc9",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Comprimento:  18\n",
+            "[\"Cappuccino : A rich and creamy cappuccino made with freshly brewed espresso, steamed milk, and a frothy milk cap. This delightful drink offers a perfect balance of bold coffee flavor and smooth milk, making it an ideal companion for relaxing mornings or lively conversations.-- Ingredients: ['Espresso', 'Steamed Milk', 'Milk Foam']-- Price: 4.5-- Rating: 4.7\", \"Jumbo Savory Scone : Deliciously flaky and buttery, this jumbo savory scone is filled with herbs and cheese, creating a mouthwatering experience. Perfect for a hearty snack or a light lunch, it pairs beautifully with your favorite coffee or tea.-- Ingredients: ['Flour', 'Butter', 'Cheese', 'Herbs', 'Baking Powder', 'Salt']-- Price: 3.25-- Rating: 4.3\", \"Latte : Smooth and creamy, our latte combines rich espresso with velvety steamed milk, creating a perfect balance of flavor and texture. Enjoy it as a comforting treat any time of day, whether you're starting your morning or taking a midday break.-- Ingredients: ['Espresso', 'Steamed Milk', 'Milk Foam']-- Price: 4.75-- Rating: 4.8\", \"Chocolate Chip Biscotti : Crunchy and delightful, this chocolate chip biscotti is perfect for dipping in your coffee or enjoying on its own. Each bite offers a satisfying crunch and a burst of rich chocolate, making it a favorite for any biscotti lover.-- Ingredients: ['Flour', 'Sugar', 'Chocolate Chips', 'Eggs', 'Almonds', 'Baking Powder']-- Price: 2.5-- Rating: 4.6\", \"Espresso shot : A bold shot of rich espresso, our espresso is crafted from the finest beans to deliver a robust flavor in every sip. Perfect for a quick pick-me-up, it can also serve as a base for your favorite coffee drinks.-- Ingredients: ['Espresso']-- Price: 2.0-- Rating: 4.9\", \"Hazelnut Biscotti : These delicious hazelnut biscotti are perfect for a crunchy treat alongside your coffee. Infused with roasted hazelnuts, they provide a delightful nutty flavor that enhances your coffee experience.-- Ingredients: ['Flour', 'Sugar', 'Hazelnuts', 'Eggs', 'Baking Powder']-- Price: 2.75-- Rating: 4.4\", \"Chocolate Croissant : Flaky and buttery, our chocolate croissant is filled with rich chocolate, making it a delightful pastry for any time. Perfect for breakfast or an afternoon snack, it's a sweet indulgence that never disappoints.-- Ingredients: ['Flour', 'Butter', 'Chocolate', 'Yeast', 'Sugar', 'Salt']-- Price: 3.75-- Rating: 4.8\", \"Dark chocolate : Rich and indulgent, our dark chocolate drinking chocolate is made with premium cocoa. This luxurious beverage is perfect for a cozy treat on a chilly day, bringing warmth and comfort with every sip.-- Ingredients: ['Cocoa Powder', 'Sugar', 'Milk']-- Price: 5.0-- Rating: 4.7\", \"Cranberry Scone : This delightful cranberry scone combines sweet and tart flavors, making it perfect for a breakfast treat or afternoon snack. Soft and crumbly, it pairs wonderfully with tea or coffee for a comforting experience.-- Ingredients: ['Flour', 'Butter', 'Cranberries', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.5-- Rating: 4.5\", \"Croissant : Our classic croissant is flaky and buttery, offering a delightful crunch with each bite. Whether enjoyed alone or filled with your favorite spread, it's a timeless pastry that elevates any meal.-- Ingredients: ['Flour', 'Butter', 'Yeast', 'Sugar', 'Salt']-- Price: 3.25-- Rating: 4.7\", \"Almond Croissant : A delightful twist on the classic croissant, filled with almond cream and topped with slivered almonds for added crunch. This indulgent treat is perfect for those who love a sweet and nutty flavor combination.-- Ingredients: ['Flour', 'Butter', 'Almond Cream', 'Sugar', 'Almonds', 'Yeast']-- Price: 4.0-- Rating: 4.8\", \"Ginger Biscotti : These spicy ginger biscotti are perfect for dipping and provide a delightful crunch with every bite. The warm flavor of ginger adds a unique twist that pairs beautifully with your favorite hot beverage.-- Ingredients: ['Flour', 'Sugar', 'Ginger', 'Eggs', 'Baking Powder']-- Price: 2.5-- Rating: 4.7\", \"Oatmeal Scone : Nutty and wholesome, our oatmeal scone is a perfect snack for any time. Made with rolled oats and a hint of sweetness, it's a satisfying option for those who enjoy hearty baked goods.-- Ingredients: ['Flour', 'Oats', 'Butter', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.25-- Rating: 4.3\", \"Ginger Scone : Soft and fragrant, our ginger scone is perfect for a morning treat, infused with the warm spice of ginger. It's an inviting option that pairs beautifully with a cup of tea or coffee.-- Ingredients: ['Flour', 'Butter', 'Ginger', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.5-- Rating: 4.5\", \"Chocolate syrup : Our rich chocolate syrup is perfect for drizzling over desserts or adding to your favorite beverages. Its velvety texture and intense chocolate flavor make it an essential topping for any sweet creation.-- Ingredients: ['Sugar', 'Cocoa Powder', 'Water', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.8\", \"Hazelnut syrup : Add a nutty flavor to your drinks with our hazelnut syrup, perfect for lattes and desserts. Its smooth sweetness enhances a variety of beverages, making it a must-have for coffee lovers.-- Ingredients: ['Sugar', 'Water', 'Hazelnut Extract', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.7\", \"Carmel syrup : Sweet and creamy, our caramel syrup is ideal for topping your drinks and desserts with a rich caramel flavor. This versatile syrup elevates everything from coffee to ice cream, providing a luscious touch.-- Ingredients: ['Sugar', 'Water', 'Cream', 'Butter', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.9\", \"Sugar Free Vanilla syrup : Enjoy the sweet flavor of vanilla without the sugar, making it perfect for your coffee or dessert. This syrup offers a guilt-free way to enhance your beverages, ensuring you never miss out on flavor.-- Ingredients: ['Water', 'Natural Flavors', 'Sucralose']-- Price: 1.5-- Rating: 4.4\"]\n"
+          ]
+        },
+        {
+          "data": {
+            "text/plain": [
+              "list"
+            ]
+          },
+          "execution_count": 9,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "# Armazenar textos em uma lista\n",
+        "texts = df['text'].tolist()\n",
+        "\n",
+        "print('Comprimento: ', len(texts))\n",
+        "print(texts)\n",
+        "type(texts)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "e788cf61",
+      "metadata": {},
+      "source": [
+        "## Adicionar textos dos arquivos `.txt`"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "f039ef6b",
+      "metadata": {},
+      "source": [
+        "### Descri\u00e7\u00e3o da cafeteria"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "id": "5ca46fad",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Ler o arquivo com a descri\u00e7\u00e3o da cafeteria\n",
+        "with open(\"../products/Merry\\'s_way_about_us.txt\", 'r') as f:\n",
+        "    Marry_way_about_section = f.read() # L\u00ea o arquivo\n",
+        "\n",
+        "Marry_way_about_section = (\"Coffee shop Marry's Way About Section\", Marry_way_about_section)\n",
+        "\n",
+        "# Adicionar se\u00e7\u00e3o About Us (t\u00edtulo + descri\u00e7\u00e3o) \u00e0 lista de textos\n",
+        "texts.append(Marry_way_about_section)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "e673fb2c",
+      "metadata": {},
+      "source": [
+        "### Texto dos itens do menu"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 11,
+      "id": "8fed3873",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Ler o arquivo com o texto dos itens\n",
+        "with open(\"../products/menu_items_text.txt\", 'r') as f:\n",
+        "    menu_items_text = f.read()  # L\u00ea o arquivo\n",
+        "\n",
+        "menu_items_text = (\"Menu Items:\", menu_items_text)\n",
+        "\n",
+        "# Adicionar se\u00e7\u00e3o About Us (t\u00edtulo + descri\u00e7\u00e3o) \u00e0 lista de textos\n",
+        "texts.append(menu_items_text)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 12,
+      "id": "8d764835",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "0 | Cappuccino : A rich and creamy cappuccino made with freshly brewed espresso, steamed milk, and a frothy milk cap. This delightful drink offers a perfect balance of bold coffee flavor and smooth milk, making it an ideal companion for relaxing mornings or lively conversations.-- Ingredients: ['Espresso', 'Steamed Milk', 'Milk Foam']-- Price: 4.5-- Rating: 4.7\n",
+            "1 | Jumbo Savory Scone : Deliciously flaky and buttery, this jumbo savory scone is filled with herbs and cheese, creating a mouthwatering experience. Perfect for a hearty snack or a light lunch, it pairs beautifully with your favorite coffee or tea.-- Ingredients: ['Flour', 'Butter', 'Cheese', 'Herbs', 'Baking Powder', 'Salt']-- Price: 3.25-- Rating: 4.3\n",
+            "2 | Latte : Smooth and creamy, our latte combines rich espresso with velvety steamed milk, creating a perfect balance of flavor and texture. Enjoy it as a comforting treat any time of day, whether you're starting your morning or taking a midday break.-- Ingredients: ['Espresso', 'Steamed Milk', 'Milk Foam']-- Price: 4.75-- Rating: 4.8\n",
+            "3 | Chocolate Chip Biscotti : Crunchy and delightful, this chocolate chip biscotti is perfect for dipping in your coffee or enjoying on its own. Each bite offers a satisfying crunch and a burst of rich chocolate, making it a favorite for any biscotti lover.-- Ingredients: ['Flour', 'Sugar', 'Chocolate Chips', 'Eggs', 'Almonds', 'Baking Powder']-- Price: 2.5-- Rating: 4.6\n",
+            "4 | Espresso shot : A bold shot of rich espresso, our espresso is crafted from the finest beans to deliver a robust flavor in every sip. Perfect for a quick pick-me-up, it can also serve as a base for your favorite coffee drinks.-- Ingredients: ['Espresso']-- Price: 2.0-- Rating: 4.9\n",
+            "5 | Hazelnut Biscotti : These delicious hazelnut biscotti are perfect for a crunchy treat alongside your coffee. Infused with roasted hazelnuts, they provide a delightful nutty flavor that enhances your coffee experience.-- Ingredients: ['Flour', 'Sugar', 'Hazelnuts', 'Eggs', 'Baking Powder']-- Price: 2.75-- Rating: 4.4\n",
+            "6 | Chocolate Croissant : Flaky and buttery, our chocolate croissant is filled with rich chocolate, making it a delightful pastry for any time. Perfect for breakfast or an afternoon snack, it's a sweet indulgence that never disappoints.-- Ingredients: ['Flour', 'Butter', 'Chocolate', 'Yeast', 'Sugar', 'Salt']-- Price: 3.75-- Rating: 4.8\n",
+            "7 | Dark chocolate : Rich and indulgent, our dark chocolate drinking chocolate is made with premium cocoa. This luxurious beverage is perfect for a cozy treat on a chilly day, bringing warmth and comfort with every sip.-- Ingredients: ['Cocoa Powder', 'Sugar', 'Milk']-- Price: 5.0-- Rating: 4.7\n",
+            "8 | Cranberry Scone : This delightful cranberry scone combines sweet and tart flavors, making it perfect for a breakfast treat or afternoon snack. Soft and crumbly, it pairs wonderfully with tea or coffee for a comforting experience.-- Ingredients: ['Flour', 'Butter', 'Cranberries', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.5-- Rating: 4.5\n",
+            "9 | Croissant : Our classic croissant is flaky and buttery, offering a delightful crunch with each bite. Whether enjoyed alone or filled with your favorite spread, it's a timeless pastry that elevates any meal.-- Ingredients: ['Flour', 'Butter', 'Yeast', 'Sugar', 'Salt']-- Price: 3.25-- Rating: 4.7\n",
+            "10 | Almond Croissant : A delightful twist on the classic croissant, filled with almond cream and topped with slivered almonds for added crunch. This indulgent treat is perfect for those who love a sweet and nutty flavor combination.-- Ingredients: ['Flour', 'Butter', 'Almond Cream', 'Sugar', 'Almonds', 'Yeast']-- Price: 4.0-- Rating: 4.8\n",
+            "11 | Ginger Biscotti : These spicy ginger biscotti are perfect for dipping and provide a delightful crunch with every bite. The warm flavor of ginger adds a unique twist that pairs beautifully with your favorite hot beverage.-- Ingredients: ['Flour', 'Sugar', 'Ginger', 'Eggs', 'Baking Powder']-- Price: 2.5-- Rating: 4.7\n",
+            "12 | Oatmeal Scone : Nutty and wholesome, our oatmeal scone is a perfect snack for any time. Made with rolled oats and a hint of sweetness, it's a satisfying option for those who enjoy hearty baked goods.-- Ingredients: ['Flour', 'Oats', 'Butter', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.25-- Rating: 4.3\n",
+            "13 | Ginger Scone : Soft and fragrant, our ginger scone is perfect for a morning treat, infused with the warm spice of ginger. It's an inviting option that pairs beautifully with a cup of tea or coffee.-- Ingredients: ['Flour', 'Butter', 'Ginger', 'Sugar', 'Baking Powder', 'Eggs']-- Price: 3.5-- Rating: 4.5\n",
+            "14 | Chocolate syrup : Our rich chocolate syrup is perfect for drizzling over desserts or adding to your favorite beverages. Its velvety texture and intense chocolate flavor make it an essential topping for any sweet creation.-- Ingredients: ['Sugar', 'Cocoa Powder', 'Water', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.8\n",
+            "15 | Hazelnut syrup : Add a nutty flavor to your drinks with our hazelnut syrup, perfect for lattes and desserts. Its smooth sweetness enhances a variety of beverages, making it a must-have for coffee lovers.-- Ingredients: ['Sugar', 'Water', 'Hazelnut Extract', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.7\n",
+            "16 | Carmel syrup : Sweet and creamy, our caramel syrup is ideal for topping your drinks and desserts with a rich caramel flavor. This versatile syrup elevates everything from coffee to ice cream, providing a luscious touch.-- Ingredients: ['Sugar', 'Water', 'Cream', 'Butter', 'Vanilla Extract']-- Price: 1.5-- Rating: 4.9\n",
+            "17 | Sugar Free Vanilla syrup : Enjoy the sweet flavor of vanilla without the sugar, making it perfect for your coffee or dessert. This syrup offers a guilt-free way to enhance your beverages, ensuring you never miss out on flavor.-- Ingredients: ['Water', 'Natural Flavors', 'Sucralose']-- Price: 1.5-- Rating: 4.4\n",
+            "18 | (\"Coffee shop Marry's Way About Section\", \"Welcome to Merry's Way Coffee, your neighborhood coffee shop located in the heart of Greenwich Village, New York City. At Merry's Way, we believe that coffee is more than just a drink\u00e2\u20ac\u201dit\u00e2\u20ac\u2122s an experience, a moment of joy, and a way to connect with others.\\n\\nOur Story\\nFounded in 2015, Merry\u00e2\u20ac\u2122s Way started as a small family-owned caf\u00c3\u00a9 with one mission: to share the love of quality, ethically-sourced coffee with our community.\\n\\nMerry's passion for travel and coffee led her on a journey across South America, where she handpicked partnerships with small farms and cooperatives. We ensure that every cup we brew tells a story of dedication and care, from farm to table. Our beans are roasted in-house to bring out unique flavors that reflect the regions where they were grown.\\n\\nDelivery & Locations Served\\nIn addition to offering a cozy place to enjoy coffee in our caf\u00c3\u00a9, we proudly deliver to Greenwich Village, SoHo, West Village, and Lower Manhattan. Whether you\u00e2\u20ac\u2122re at home, in the office, or enjoying a day at Washington Square Park, we bring your favorite coffee right to your door. Just a click away, our delivery service ensures that you never miss your daily cup, no matter where you are.\\n\\nOur Menu\\nOur menu offers something for everyone, from our signature espresso blends to refreshing cold brews, artisanal teas, and fresh-baked goods sourced from local bakeries. We also cater to a variety of dietary needs with a range of plant-based milk options and gluten-free snacks.\\n\\nCommunity & Sustainability\\nAt Merry's Way, we are more than just coffee. We are part of the community, and we care deeply about sustainability. We use eco-friendly packaging, work with local farmers, and strive to minimize our carbon footprint. Our caf\u00c3\u00a9 regularly hosts events, such as live music nights, art showcases, and community fundraisers, making it a hub for creativity and connection.\\n\\nWorking Hours\\nWe're open every day to make sure you can get your coffee whenever you need it:\\n\\nMonday to Friday: 7 AM \u00e2\u20ac\u201c 8 PM\\nSaturday: 8 AM \u00e2\u20ac\u201c 8 PM\\nSunday: 8 AM \u00e2\u20ac\u201c 6 PM\\nWhether you\u00e2\u20ac\u2122re grabbing a coffee on the go or staying to enjoy the warm, inviting atmosphere of our caf\u00c3\u00a9, Merry\u00e2\u20ac\u2122s Way is your destination for coffee done right.\\n\\nStop by today or order online\u00e2\u20ac\u201dwe can\u00e2\u20ac\u2122t wait to serve you!\")\n",
+            "19 | ('Menu Items:', 'Menu Items\\n\\nCappuccino - $4.50\\nJumbo Savory Scone - $3.25\\nLatte - $4.75\\nChocolate Chip Biscotti - $2.50\\nEspresso shot - $2.00\\nHazelnut Biscotti - $2.75\\nChocolate Croissant - $3.75\\nDark chocolate (Drinking Chocolate) - $5.00\\nCranberry Scone - $3.50\\nCroissant - $3.25\\nAlmond Croissant - $4.00\\nGinger Biscotti - $2.50\\nOatmeal Scone - $3.25\\nGinger Scone - $3.50\\nChocolate syrup - $1.50\\nHazelnut syrup - $1.50\\nCarmel syrup - $1.50\\nSugar Free Vanilla syrup - $1.50\\nDark chocolate (Packaged Chocolate) - $3.00')\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Imprimir lista de textos\n",
+        "for i, text in enumerate(texts):\n",
+        "    print(f\"{i} | {text}\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "b2a99157",
+      "metadata": {},
+      "source": [
+        "# Gerar os Embeddings"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 13,
+      "id": "7f16e0c2",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "[[-0.02510559  0.0026576   0.02661145 ...  0.04739087  0.07071644\n",
+            "   0.05902702]\n",
+            " [-0.04500085 -0.01434042  0.08822834 ... -0.00404392  0.03852065\n",
+            "  -0.01553417]\n",
+            " [-0.01892913 -0.03732952  0.02678928 ...  0.01115508 -0.01128877\n",
+            "   0.0982942 ]\n",
+            " ...\n",
+            " [ 0.00903736 -0.03548158  0.07310835 ... -0.01576524  0.03464822\n",
+            "   0.04195429]\n",
+            " [ 0.04156391 -0.01293723  0.01440373 ...  0.03530694  0.00254492\n",
+            "  -0.00517276]\n",
+            " [-0.0528118  -0.06622067  0.01041227 ... -0.05127174  0.05799047\n",
+            "  -0.03584244]]\n",
+            "\n",
+            "Tamanho do vetor embedding:  384\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Transforma os textos (descri\u00e7\u00e3o da cafeteria e itens do menu) em um vetor num\u00e9rico\n",
+        "output = embedding_client.encode(texts, convert_to_numpy=True)\n",
+        "\n",
+        "print(output)\n",
+        "print(\"\\nTamanho do vetor embedding: \", len(output[0]))"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 14,
+      "id": "2c1114c9",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "<class 'memoryview'>\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Copiar dados efetivos contidos em output\n",
+        "# Com RunPod: embeddings = output.data[0].embedding\n",
+        "embeddings = output.data\n",
+        "\n",
+        "print(type(embeddings))"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "f3bd426d",
+      "metadata": {},
+      "source": [
+        "# Push dos dados para o banco de dados"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "f86329fd",
+      "metadata": {},
+      "source": [
+        "**\u00cdndice vetorial serverless:** banco de dados otimizado para buscas por similaridade de vetores (como embeddings de texto)."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 15,
+      "id": "9b1782ec",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "\u00cdndice j\u00e1 existe!\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Verificar se index j\u00e1 existe\n",
+        "try:\n",
+        "    pc.describe_index(pinecone_index_name) # tenta descrever o \u00edndice\n",
+        "    print(\"\u00cdndice j\u00e1 existe!\") # se n\u00e3o der erro, o \u00edndice j\u00e1 existe\n",
+        "except pinecone.exceptions.NotFoundException:\n",
+        "    print(\"\u00cdndice n\u00e3o existe! Criando um \u00edndice...\")\n",
+        "\n",
+        "    # Criar \u00edndice vetorial serverless no Pinecone\n",
+        "    pc.create_index(\n",
+        "        name=pinecone_index_name, # nome do \u00edndice a ser criado (usado para envio/busca de dados)\n",
+        "        dimension=384, # dimens\u00e3o dos vetores armazenados (modelo 'bge-small-en-v1.5' gera vetores de 384 dimens\u00f5es)  \n",
+        "        metric=\"cosine\", # m\u00e9trica de similaridade: cosseno (medir \u00e2ngulo entre dois vetores)\n",
+        "        spec=ServerlessSpec( # especifica\u00e7\u00e3o do \u00edndice usando Pinecone Serverless\n",
+        "            cloud=\"aws\", # provedor de nuvem: AWS\n",
+        "            region=\"us-east-1\",  # regi\u00e3o da AWS: Norte da Virginia (precisa ser uma regi\u00e3o que suporte o Pinecone Serverless)\n",
+        "        )\n",
+        "    )"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "e4d2e411",
+      "metadata": {},
+      "source": [
+        "# Upload dos dados"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 16,
+      "id": "948954fd",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "import unicodedata, re"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 17,
+      "id": "6fccddf9",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "\u00cdndice pronto!\n",
+            "Namespace 'ns1' deletado com sucesso (ou estava vazio).\n"
+          ]
+        },
+        {
+          "data": {
+            "text/plain": [
+              "{'upserted_count': 20}"
+            ]
+          },
+          "execution_count": 17,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "# Esperar o \u00edndice estar pronto\n",
+        "while not pc.describe_index(pinecone_index_name).status.ready:\n",
+        "    # print(\"Aguardando o \u00edndice estar pronto...\")\n",
+        "    sleep(5)  # espera 5 segundos antes de verificar novamente\n",
+        "print(\"\u00cdndice pronto!\")\n",
+        "\n",
+        "# Cria um \u00edndice no Pinecone com o nome do \u00edndice criado anteriormente\n",
+        "index = pc.Index(pinecone_index_name) \n",
+        "\n",
+        "# Deletar dados se j\u00e1 existirem (evitar conflitos)\n",
+        "try:\n",
+        "    index.delete(delete_all=True, namespace='ns1')\n",
+        "    print(\"Namespace 'ns1' deletado com sucesso (ou estava vazio).\")\n",
+        "except pinecone.exceptions.NotFoundException:\n",
+        "    print(\"Namespace 'ns1' n\u00e3o existe. Nada a deletar.\")\n",
+        "\n",
+        "# Vetor com os dados a serem armazenados no \u00edndice\n",
+        "vectors = []\n",
+        "for text, embedding in zip(texts, embeddings.tolist()):\n",
+        "    text = str(text) # corrigir erro de data type\n",
+        "    # Remover acentos e converter para ASCII puro\n",
+        "    text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')\n",
+        "\n",
+        "    # ID do vetor (t\u00edtulo do texto)\n",
+        "    entry_id = text.split(\":\")[0]\n",
+        "    # Adicionar \u00e0 lista de vetores\n",
+        "    vectors.append({\n",
+        "        \"id\": entry_id, # ID do vetor (t\u00edtulo do texto)\n",
+        "        \"values\": embedding, # vetor de embedding (converter array NumPy para lista)\n",
+        "        \"metadata\": {\"text\": text} # metadados (texto original)\n",
+        "    })\n",
+        "\n",
+        "# Armazenar vetores no \u00edndice do Pinecone\n",
+        "index.upsert(\n",
+        "    vectors = vectors,\n",
+        "    namespace = \"ns1\" # namespace (espa\u00e7o de nomes) para organizar os vetores\n",
+        "    ) "
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "id": "5047c769",
+      "metadata": {},
+      "source": [
+        "# Obter documentos mais pr\u00f3ximos"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 20,
+      "id": "3bd865d9",
+      "metadata": {},
+      "outputs": [],
+      "source": [
+        "# Com RunPod: output = client.embedding.create(input=[\"hello world\"], model=model_name) | embedding = output.data[0].embedding\n",
+        "\n",
+        "output = embedding_client.encode( # exemplo de input do usu\u00e1rio\n",
+        "    sentences=[\"Is Cappuccino lactose-free?\"], convert_to_numpy=True)\n",
+        "embedding = np.array(output.data) # obter embedding no formato array NumPy"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 21,
+      "id": "421c5408",
+      "metadata": {},
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "{'matches': [{'id': \"('Menu Items\",\n",
+            "              'metadata': {'text': \"('Menu Items:', 'Menu \"\n",
+            "                                   'Items\\\\n\\\\nCappuccino - $4.50\\\\nJumbo '\n",
+            "                                   'Savory Scone - $3.25\\\\nLatte - '\n",
+            "                                   '$4.75\\\\nChocolate Chip Biscotti - '\n",
+            "                                   '$2.50\\\\nEspresso shot - $2.00\\\\nHazelnut '\n",
+            "                                   'Biscotti - $2.75\\\\nChocolate Croissant - '\n",
+            "                                   '$3.75\\\\nDark chocolate (Drinking '\n",
+            "                                   'Chocolate) - $5.00\\\\nCranberry Scone - '\n",
+            "                                   '$3.50\\\\nCroissant - $3.25\\\\nAlmond '\n",
+            "                                   'Croissant - $4.00\\\\nGinger Biscotti - '\n",
+            "                                   '$2.50\\\\nOatmeal Scone - $3.25\\\\nGinger '\n",
+            "                                   'Scone - $3.50\\\\nChocolate syrup - '\n",
+            "                                   '$1.50\\\\nHazelnut syrup - $1.50\\\\nCarmel '\n",
+            "                                   'syrup - $1.50\\\\nSugar Free Vanilla syrup - '\n",
+            "                                   '$1.50\\\\nDark chocolate (Packaged '\n",
+            "                                   \"Chocolate) - $3.00')\"},\n",
+            "              'score': 0.622077167,\n",
+            "              'values': []}],\n",
+            " 'namespace': 'ns1',\n",
+            " 'usage': {'read_units': 1}}\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Consultar o index do Pinecone para encontrar os vetores mais pr\u00f3ximos do input do usu\u00e1rio\n",
+        "results = index.query(\n",
+        "    namespace = 'ns1', # namespace (espa\u00e7o de nomes) para organizar os vetores\n",
+        "    vector = embedding.tolist(), # vetor de embedding da query (converter array NumPy para lista)\n",
+        "    top_k = 1, # o elemento mais pr\u00f3ximo da solicita\u00e7\u00e3o\n",
+        "    include_values = False, # n\u00e3o incluir os valores dos vetores (n\u00e3o s\u00e3o leg\u00edveis pra humanos)\n",
+        "    include_metadata = True, # incluir os metadados (texto original)\n",
+        ")\n",
+        "print(results)"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.13.3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

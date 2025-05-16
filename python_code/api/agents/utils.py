@@ -19,7 +19,7 @@ def get_chatbot_response(client, model_name, messages, temperature=0):
                 "content": message["content"]  # Conteúdo da mensagem
             })
 
-        # Chamada à API do OpenAI para obter a resposta do modelo
+        # Chamada à API do OpenAI/OpenRouter para obter a resposta do modelo
         response = client.chat.completions.create(
             model=model_name,  # Modelo de IA
             # Lista de mensagens
@@ -28,6 +28,11 @@ def get_chatbot_response(client, model_name, messages, temperature=0):
             temperature=temperature,  # 0 pois queremos resultados concretos
             top_p=0.8,
             max_tokens=2_000,  # Limite de tokens na resposta
+            # Parâmetros específicos do OpenRouter
+            headers={
+                "HTTP-Referer": "https://coffee-shop-app-with-chatbot.example",
+                "X-Title": "Coffee Shop App with Chatbot"
+            },
             # Token: unidade de medida do modelo de IA (palavras, sub-palavras, caracteres, ...)
         ).choices[0].message.content
 
