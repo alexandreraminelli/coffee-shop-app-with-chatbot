@@ -39,9 +39,9 @@ def main():
         os.system('cls' if os.name == 'nt' else 'clear')
 
         # Exibir mensagens anteriores
-        # print("\n\n Print mensagens ............")
-        # for message in messages:
-        #     print(f"{message['role']}: {message['content']}")
+        print("\n\n Print mensagens ............")
+        for message in messages:
+            print(f"{message['role']}: {message['content']}")
 
         # Obter mensagem do usuário e adiciona-a à lista de mensagens
         prompt = input("Usuário: ")
@@ -68,7 +68,7 @@ def main():
         # acessar seu método `get_response`
         response = agent.get_response(messages)
         # Exibir metadados
-        # print("Agent output:", response)
+        print("Agent output:", response)
         # adiciona a resposta do agente à lista de mensagens
         messages.append(response)
 
