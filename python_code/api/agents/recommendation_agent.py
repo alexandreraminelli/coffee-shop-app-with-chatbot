@@ -1,11 +1,13 @@
 import json
 import pandas as pd
+import numpy as np
 import os
 from copy import deepcopy
 import dotenv
 from openai import OpenAI
 # Importar funções utilitárias
-from .utils import get_chatbot_response, double_check_json_output  # utilitários
+from .utils import get_chatbot_response, get_embedding, double_check_json_output  # utilitários
+from pinecone import Pinecone  # Importar o cliente Pinecone
 # Importar SentenceTransformer para embeddings locais
 from sentence_transformers import SentenceTransformer
 
@@ -23,10 +25,6 @@ class RecommendationAgent():
             base_url=os.getenv("CHATBOT_URL")
         )
         self.model_name = os.getenv("MODEL_NAME")  # Modelo LLM
-
-        # Cliente de embeddings usando SentenceTransformer (processamento local)
-        self.embedding_model_name = os.getenv("EMBEDDING_MODEL_NAME")
-        self.embedding_client = SentenceTransformer(self.embedding_model_name)
 
         # Ler arquivo de recomendações Apriori (.json)
         with open(apriori_recommendation_path, 'r') as file:
