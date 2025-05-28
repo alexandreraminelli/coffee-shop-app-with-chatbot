@@ -1,15 +1,15 @@
-# Bibliotecas principais
-pandas==2.0.3
-python-dotenv==1.0.1
-openai==1.76.0  # Atualizado para versão mais recente
-pinecone-client==2.2.4  # Renomeado para o nome correto do pacote
+fastapi[standard]
+sqlmodel
+psycopg2-binary
 
-# Para embeddings e processamento de linguagem natural
-sentence-transformers==2.2.2
-numpy==1.24.3
-
-# Para deployment e servidor
-runpod==0.15.6
-
-# Utilitários
 pathlib==1.0.1
+
+# Conexão com o LLM
+pandas==2.2.3
+python-dotenv==1.1.0
+openai==1.76.0
+pinecone==6.0.2
+
+# Embedding e processamento de linguagem natural
+sentence-transformers==4.0.2
+numpy==2.2.4
