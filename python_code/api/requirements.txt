@@ -12,5 +12,5 @@ openai==1.76.0
 pinecone==6.0.2
 
 # Embedding e processamento de linguagem natural
-sentence-transformers==4.0.2
+sentence-transformers==4.1.0
 numpy==2.2.4
