@@ -27,4 +27,4 @@ jobs:
           context: ./python_code/api
           file: ./python_code/api/Dockerfile
           push: true
-          tags: meu-usuario/coffee-shop-chatbot:latest
+          tags: alexandreraminelli/coffee-shop-chatbot:latest
